@@ -256,8 +256,8 @@ class ExpenseTracker {
   }
 
   /**
-   * Push pending Splitwise settlement movements to Splitwise
-   * Creates expenses in Splitwise for movements marked as "pending splitwise settlement"
+   * Push movements awaiting Splitwise upload to Splitwise
+   * Creates expenses in Splitwise for movements marked as "Awaiting Splitwise Upload"
    */
   async pushToSplitwise() {
     try {
@@ -270,15 +270,15 @@ class ExpenseTracker {
         return;
       }
 
-      // 2. Get movements pending Splitwise settlement
+      // 2. Get movements awaiting Splitwise upload
       const pendingMovements = this.database.getMovementsPendingSplitwiseSettlement();
 
       if (pendingMovements.length === 0) {
-        Logger.log('No movements pending Splitwise settlement.');
+        Logger.log('No movements awaiting Splitwise upload.');
         return;
       }
 
-      Logger.log(`Found ${pendingMovements.length} movement(s) pending Splitwise settlement.`);
+      Logger.log(`Found ${pendingMovements.length} movement(s) awaiting Splitwise upload.`);
 
       // 3. Process each movement
       let processedCount = 0;
@@ -552,7 +552,6 @@ class ExpenseTracker {
       case MOVEMENT_TYPES.EXPENSE:
       case MOVEMENT_TYPES.CASH:
       case MOVEMENT_TYPES.DEBIT:
-      case MOVEMENT_TYPES.CREDIT_REPAYMENT:
         return DIRECTIONS.OUTFLOW;
       case MOVEMENT_TYPES.CREDIT:
         return DIRECTIONS.INFLOW;
@@ -573,8 +572,6 @@ class ExpenseTracker {
       case MOVEMENT_TYPES.DEBIT:
       case MOVEMENT_TYPES.CREDIT:
         return STATUS.UNSETTLED;
-      case MOVEMENT_TYPES.CREDIT_REPAYMENT:
-        return STATUS.SETTLED;
       case MOVEMENT_TYPES.DEBIT_REPAYMENT:
         return null;
       default:

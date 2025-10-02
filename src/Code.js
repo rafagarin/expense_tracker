@@ -48,8 +48,8 @@ async function processSplitwise() {
 }
 
 /**
- * Push pending Splitwise settlement movements to Splitwise
- * This function creates expenses in Splitwise for movements marked as "pending splitwise settlement"
+ * Push movements awaiting Splitwise upload to Splitwise
+ * This function creates expenses in Splitwise for movements marked as "Awaiting Splitwise Upload"
  */
 async function pushToSplitwise() {
   const expenseTracker = new ExpenseTracker();
@@ -77,7 +77,7 @@ async function main() {
     Logger.log('=== Step 3: Analyzing movements with AI ===');
     await expenseTracker.processUncategorizedMovements();
     
-    // Step 4: Push to Splitwise (only movements with "pending splitwise settlement" status)
+    // Step 4: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
     Logger.log('=== Step 4: Pushing to Splitwise ===');
     await expenseTracker.pushToSplitwise();
     

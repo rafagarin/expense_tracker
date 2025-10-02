@@ -8,15 +8,15 @@ This script helps me track my personal expenses. It:
 
 The database columns are:
 - timestamp (in ISO 8601 format, YYYY-MM-DDTHH:mm:ss.sssZ)
-- direction (any of: outflow, inflow, neutral)
-- type (any of: expense, cash, debit, credit, debit repayment, credit repayment, transfer)
+- direction (any of: Outflow, Inflow, Neutral)
+- type (any of: Expense, Cash, Debit, Credit, Debit Repayment, Transfer)
 - amount
 - currency (I’m expecting CLP, USD, GBP)
 - source_description (the usually non-descriptive string that the bank email provides, or the description from Splitwise)
 - user_description (a user-provided description that will help with filling in more info about the movement, in step 3)
 - comment (free text field, for instructions to AI)
-- category (any of: housing, food, transportation, health, personal, household, entertainment, work, miscellaneous)
-- loan_status (for debit and credit movements: "settled", "pending direct settlement", "pending splitwise settlement", "in splitwise"; null for others)
+- category (values are configured in the spreadsheet by the user)
+- loan_status (for debit and credit movements: "Settled", "Pending Settlement", "Awaiting Splitwise Upload", "In Splitwise"; null for others)
 - settled_movement_id (used for repayments, id of the movement that is fully or partially settled by this movement)
 - clp_value (same as amount but converted to CLP)
 - usd_value (same as amount but converted to USD)
@@ -59,14 +59,14 @@ The database columns are:
 ### Examples
 
 Here is how some example movements would be represented in the database:
-1. If I bought something for myself, it is added as a movement with type: “expense”.
-2. Cash withdrawals are added with type: “cash”, category: “miscellaneous”.
-3. Transfers between my own accounts will be added with direction: “neutral”, type: "transfer".
-4. When I lend money to people, it must be settled by a later movement. For example, say I paid a restaurant bill for multiple people but expect to be paid back what others spent. Then my part is added with type: “expense”, and the part of other people is added as type: “debit”.
+1. If I bought something for myself, it is added as a movement with type: "Expense".
+2. Cash withdrawals are added with type: "Cash", category: "miscellaneous".
+3. Transfers between my own accounts will be added with direction: "Neutral", type: "Transfer".
+4. When I lend money to people, it must be settled by a later movement. For example, say I paid a restaurant bill for multiple people but expect to be paid back what others spent. Then my part is added with type: "Expense", and the part of other people is added as type: "Debit".
   This debit can later be settled in two ways:
-   1. With a bank transfer, which will be read from Gmail and saved with type “debit repayment”.
-   2. Or by adding it to Splitwise, which will also be saved with type “debit repayment”.
-5. When someone else lends me money, there is no way to detect the initial loan, so when I pay it with a bank transfer it will simply be added as a single movement with type: “expense”. Or it can be added to and read from Splitwise, in which case it will counted as a movement with type: “credit”.
+   1. With a bank transfer, which will be read from Gmail and saved with type "Debit Repayment".
+   2. Or by adding it to Splitwise, which will also be saved with type "Debit Repayment".
+5. When someone else lends me money, there is no way to detect the initial loan, so when I pay it with a bank transfer it will simply be added as a single movement with type: "Expense". Or it can be added to and read from Splitwise, in which case it will counted as a movement with type: "Credit".
 
 In other words:
 - Loan: someone owes someone else money.
@@ -79,7 +79,7 @@ In other words:
 
 Out of scope:
 
-- Movements paid with credit card will just count as expenses (type: “expense”) right at that moment. They don’t count as credit, and the actual payment of the credit card bill is later ignored.
+- Movements paid with credit card will just count as expenses (type: "Expense") right at that moment. They don't count as credit, and the actual payment of the credit card bill is later ignored.
 - Cash withdrawals will just count as a miscellaneous expense.
 
 ### Setup

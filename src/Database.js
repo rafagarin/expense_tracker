@@ -329,8 +329,8 @@ class Database {
   }
 
   /**
-   * Get movements that are pending Splitwise settlement
-   * @returns {Array} Array of movements pending Splitwise settlement
+   * Get movements that are awaiting Splitwise upload
+   * @returns {Array} Array of movements awaiting Splitwise upload
    */
   getMovementsPendingSplitwiseSettlement() {
     const allMovements = this.getAllMovements();
@@ -340,8 +340,8 @@ class Database {
   }
 
   /**
-   * Get debit movements that are pending direct settlement
-   * @returns {Array} Array of debit movements pending direct settlement
+   * Get debit movements that are pending settlement
+   * @returns {Array} Array of debit movements pending settlement
    */
   getMovementsPendingDirectSettlement() {
     const allMovements = this.getAllMovements();

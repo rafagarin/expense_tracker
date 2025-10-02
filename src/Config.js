@@ -39,29 +39,28 @@ const CURRENCIES = {
 
 // Movement types
 const MOVEMENT_TYPES = {
-  EXPENSE: 'expense',
-  CASH: 'cash',
-  DEBIT: 'debit',
-  CREDIT: 'credit',
-  DEBIT_REPAYMENT: 'debit repayment',
-  CREDIT_REPAYMENT: 'credit repayment'
+  EXPENSE: 'Expense',
+  CASH: 'Cash',
+  DEBIT: 'Debit',
+  CREDIT: 'Credit',
+  DEBIT_REPAYMENT: 'Debit Repayment'
 };
 
 // Movement directions
 const DIRECTIONS = {
-  OUTFLOW: 'outflow',
-  INFLOW: 'inflow',
-  NEUTRAL: 'neutral'
+  OUTFLOW: 'Outflow',
+  INFLOW: 'Inflow',
+  NEUTRAL: 'Neutral'
 };
 
 
 // Status values
 const STATUS = {
-  UNSETTLED: 'unsettled',
-  SETTLED: 'settled',
-  PENDING_DIRECT_SETTLEMENT: 'pending direct settlement',
-  PENDING_SPLITWISE_SETTLEMENT: 'pending splitwise settlement',
-  IN_SPLITWISE: 'in splitwise'
+  UNSETTLED: 'Unsettled',
+  SETTLED: 'Settled',
+  PENDING_DIRECT_SETTLEMENT: 'Pending Settlement',
+  PENDING_SPLITWISE_SETTLEMENT: 'Awaiting Splitwise Upload',
+  IN_SPLITWISE: 'In Splitwise'
 };
 
 

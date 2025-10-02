@@ -49,21 +49,20 @@ IMPORTANT: Classify the transaction type using ONLY these specific values:
 - "debit": Money I lent to other people (I paid but expect to be paid back)
 - "credit": Money someone else lent to me (they paid for me, I owe them)
 - "debit repayment": Someone paying me back money I lent them
-- "credit repayment": Me paying back money someone lent me
 
 Please extract the following information and return it as a JSON object:
 - amount: The transaction amount as a number
 - currency: The currency code (CLP, USD, or GBP)
 - source_description: The merchant/description from the email
 - timestamp: The transaction timestamp in ISO 8601 format (YYYY-MM-DDTHH:mm:ss.sssZ)
-- transaction_type: ONE of the 6 types listed above (expense, cash, debit, credit, debit repayment, credit repayment)
+- transaction_type: ONE of the 5 types listed above (expense, cash, debit, credit, debit repayment)
 
 Rules for classification:
 - Regular purchases (food, gas, shopping, etc.) = "expense"
 - ATM withdrawals = "cash"
 - If I paid for a group but others will pay me back = "debit"
 - If someone else paid for me and I need to pay them back = "credit"
-- Bank transfers that are clearly repayments = "debit repayment" or "credit repayment"
+- Bank transfers that are clearly repayments = "debit repayment"
 
 If you cannot extract any of these fields, set them to null. Only return valid JSON, no additional text.`;
   }
@@ -175,8 +174,7 @@ If you cannot extract any of these fields, set them to null. Only return valid J
       'cash': MOVEMENT_TYPES.CASH,
       'debit': MOVEMENT_TYPES.DEBIT,
       'credit': MOVEMENT_TYPES.CREDIT,
-      'debit repayment': MOVEMENT_TYPES.DEBIT_REPAYMENT,
-      'credit repayment': MOVEMENT_TYPES.CREDIT_REPAYMENT
+      'debit repayment': MOVEMENT_TYPES.DEBIT_REPAYMENT
     };
 
     return typeMapping[transactionType.toLowerCase()] || MOVEMENT_TYPES.EXPENSE;
