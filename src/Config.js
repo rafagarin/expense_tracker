@@ -95,10 +95,20 @@ const API_CONFIG = {
  * Get API key from PropertiesService
  * This is the secure way to store API keys in Google Apps Script
  * @param {string} keyName - The property name for the API key
+ * @param {Object} clientProperties - Optional client properties object
  * @returns {string} The API key
  */
-function getApiKey(keyName) {
-  const properties = PropertiesService.getScriptProperties();
+function getApiKey(keyName, clientProperties = null) {
+  let properties;
+  
+  if (clientProperties) {
+    // Use client properties if provided
+    properties = clientProperties;
+  } else {
+    // Fall back to script properties (for backward compatibility)
+    properties = PropertiesService.getScriptProperties();
+  }
+  
   const apiKey = properties.getProperty(keyName);
   
   if (!apiKey) {

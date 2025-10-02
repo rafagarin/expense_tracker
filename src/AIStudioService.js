@@ -3,8 +3,9 @@
  */
 
 class GoogleAIStudioService {
-  constructor() {
-    this.googleAIStudioApiKey = getApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY);
+  constructor(clientProperties = null) {
+    this.clientProperties = clientProperties;
+    this.googleAIStudioApiKey = getApiKey(API_CONFIG.GOOGLE_AI_STUDIO.API_KEY_PROPERTY, clientProperties);
     this.googleAIStudioBaseUrl = API_CONFIG.GOOGLE_AI_STUDIO.BASE_URL;
     this.googleAIStudioModel = API_CONFIG.GOOGLE_AI_STUDIO.MODEL;
     this.categoryService = new CategoryService();

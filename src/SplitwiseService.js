@@ -4,8 +4,9 @@
  */
 
 class SplitwiseService {
-  constructor() {
-    this.splitwiseApiKey = getApiKey(API_CONFIG.SPLITWISE.API_KEY_PROPERTY);
+  constructor(clientProperties = null) {
+    this.clientProperties = clientProperties;
+    this.splitwiseApiKey = getApiKey(API_CONFIG.SPLITWISE.API_KEY_PROPERTY, clientProperties);
     this.splitwiseBaseUrl = API_CONFIG.SPLITWISE.BASE_URL;
     this.currentUserId = null;
     this.categoryService = new CategoryService();

@@ -3,6 +3,10 @@
  */
 
 class GmailService {
+  constructor(clientProperties = null) {
+    this.clientProperties = clientProperties;
+  }
+
   /**
    * Search for bank notification emails
    * @returns {Array} Array of Gmail thread objects

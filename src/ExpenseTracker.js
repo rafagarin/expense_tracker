@@ -3,11 +3,12 @@
  */
 
 class ExpenseTracker {
-  constructor() {
+  constructor(clientProperties = null) {
+    this.clientProperties = clientProperties;
     this.database = new Database();
-    this.gmailService = new GmailService();
-    this.googleAIStudioService = new GoogleAIStudioService();
-    this.splitwiseService = new SplitwiseService();
+    this.gmailService = new GmailService(clientProperties);
+    this.googleAIStudioService = new GoogleAIStudioService(clientProperties);
+    this.splitwiseService = new SplitwiseService(clientProperties);
     this.currencyConversionService = new CurrencyConversionService();
   }
 

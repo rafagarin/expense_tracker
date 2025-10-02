@@ -8,7 +8,8 @@ function onOpen() {
 
 function main() {
   try {
-    return ExpenseTrackerLibrary.main();
+    const clientProperties = PropertiesService.getScriptProperties();
+    return ExpenseTrackerLibrary.main(clientProperties);
   } catch (error) {
     Logger.log(`Error in main workflow: ${error.message}`);
     SpreadsheetApp.getUi().alert(`Error: ${error.message}`);

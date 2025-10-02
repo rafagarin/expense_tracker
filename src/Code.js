@@ -59,11 +59,12 @@ async function pushToSplitwise() {
 /**
  * Main function that performs all expense tracking actions with proper conditions
  * This is the primary entry point that orchestrates the entire workflow
+ * @param {Object} clientProperties - Optional client properties object
  */
-async function main() {
+async function main(clientProperties = null) {
   try {
     Logger.log('Starting main expense tracking workflow...');
-    const expenseTracker = new ExpenseTracker();
+    const expenseTracker = new ExpenseTracker(clientProperties);
     
     // Step 1: Process bank emails (with idempotency - only new emails)
     Logger.log('=== Step 1: Processing bank emails ===');
