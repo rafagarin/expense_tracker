@@ -83,7 +83,7 @@ const API_CONFIG = {
   // Google AI Studio API configuration
   GOOGLE_AI_STUDIO: {
     BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
-    MODEL: 'gemini-2.0-flash',
+    MODEL: 'gemini-2.0-flash-lite',
     API_KEY_PROPERTY: 'GOOGLE_AI_STUDIO_API_KEY'
   },
   // Splitwise API configuration
