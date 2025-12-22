@@ -228,35 +228,76 @@ Additional Context:
 Available Categories (choose ONLY one):
 ${categoriesList}
 
-Split Analysis:
-Determine if this expense should be split into two parts. Look for indicators in both the main description and any comments/instructions:
-- "split with", "shared with", "paid for group", "dinner with friends"
-- "my part", "their part", "half", "portion"
-- "dividir", "compartir", "mitad" (Spanish split indicators)
-- References to other people or splitting costs
-- Group activities where only part of the cost is personal
-- Instructions in comments like "dividir" or "split"
+---
+SPLIT ANALYSIS:
+There are two types of splits. Determine if a split is needed and what type it is.
 
-Rules for categorization:
-1. Choose the category that best represents the primary purpose of the expense
-2. If it could fit multiple categories, choose the most specific one
-3. Consider the context and amount when making decisions
-4. When in doubt, choose "miscellaneous"
+1.  **DEBIT Split**: When a payment is shared with other people, and you expect to be paid back.
+    -   **Indicators**: "split with", "shared with", "paid for group", "dinner with friends", "my part", "their part", "dividir con", "compartir con".
+    -   If you detect a DEBIT split, set "needs_split": true and "split_type": "DEBIT".
 
-Return a JSON object with the following structure:
+2.  **EXPENSE Split**: When a single payment covers multiple personal expense categories.
+    -   **Example**: A supermarket bill for both "groceries" and "household" items.
+    -   **Indicators**: Instructions like "split 20 for household", "15 for transport, rest is food".
+    -   If you detect an EXPENSE split, set "needs_split": true and "split_type": "EXPENSE".
+
+---
+JSON OUTPUT RULES:
+Return a JSON object with the following structure. Do NOT include any other text.
+
 {
-  "category": "category_name",
-  "needs_split": true/false,
-  "split_amount": number (only if needs_split is true, the amount for the personal portion),
-  "split_category": "category_name" (only if needs_split is true, category for the personal portion),
-  "clean_description": "clean description without split instructions",
-  "split_instructions": "split instructions or comments"
+  "category": "category_name" | null,
+  "needs_split": true | false,
+  "split_type": "DEBIT" | "EXPENSE" | null,
+  "split_amount": number | null,
+  "split_description": "string" | null,
+  "split_category": "category_name" | null,
+  "clean_description": "string"
 }
 
-If needs_split is true, split_amount should be the amount that represents the user's personal portion of the expense.
-The clean_description should be the main description without any split-related instructions.
-The split_instructions should contain any split-related instructions or comments.`;
-  }
+---
+FIELD-SPECIFIC INSTRUCTIONS:
+
+-   **If no split is needed ("needs_split": false)**:
+    -   "category": The single best category for the expense.
+    -   "needs_split": false.
+    -   Set all "split_*" fields to null.
+    -   "clean_description": The user description, cleaned of any non-essential comments.
+
+-   **If a DEBIT split is needed ("split_type": "DEBIT")**:
+    -   "category": The category for YOUR personal portion of the expense.
+    -   "needs_split": true.
+    -   "split_type": "DEBIT".
+    -   "split_amount": The amount of YOUR personal portion.
+    -   "split_description": A description for the part OTHERS owe you (e.g., "John's part of dinner"). This will be used for the new Debit movement.
+    -   "split_category": Same as "category".
+    -   "clean_description": A clean description for the overall event (e.g., "Dinner with John"). This will be used for your personal expense portion.
+
+-   **If an EXPENSE split is needed ("split_type": "EXPENSE")**:
+    -   "category": null. The items will be categorized later by the user.
+    -   "needs_split": true.
+    -   "split_type": "EXPENSE".
+    -   "split_amount": The amount to be split OFF into a NEW movement.
+    -   "split_description": A description for the NEW movement (e.g., "household items").
+    -   "split_category": null.
+    -   "clean_description": The original description, cleaned of split instructions (e.g., "Supermarket"). This will be used for the remaining part of the original movement.
+
+---
+Example 1 (No Split):
+User Description: "Lunch at cafe"
+Amount: CLP 10000
+Output: { "category": "restaurants", "needs_split": false, "split_type": null, "split_amount": null, "split_description": null, "split_category": null, "clean_description": "Lunch at cafe" }
+
+Example 2 (DEBIT Split):
+User Description: "Dinner with friends, my part is 25"
+Amount: GBP 75
+Output: { "category": "restaurants", "needs_split": true, "split_type": "DEBIT", "split_amount": 25, "split_description": "Dinner with friends (shared part)", "split_category": "restaurants", "clean_description": "Dinner with friends (my part)" }
+
+Example 3 (EXPENSE Split):
+User Description: "Supermarket. comment: split 15 for household items"
+Amount: USD 100
+Output: { "category": null, "needs_split": true, "split_type": "EXPENSE", "split_amount": 15, "split_description": "household items", "split_category": null, "clean_description": "Supermarket" }`;
+}
 
   /**
    * Parse the Google AI Studio response for category analysis
@@ -289,41 +330,46 @@ The split_instructions should contain any split-related instructions or comments
       }
       
       // Validate required fields
-      if (!parsedData.category) {
+      const isExpenseSplit = parsedData.needs_split && parsedData.split_type === 'EXPENSE';
+      
+      if (!isExpenseSplit && !parsedData.category) {
         Logger.log('Missing required category field in analysis response');
         Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
         return null;
       }
 
-      // Validate that the category is one of our valid categories
+      // Validate that the category is one of our valid categories, if it exists
       const validCategories = this.categoryService.getCategoryNames();
-      if (!validCategories.includes(parsedData.category)) {
+      if (parsedData.category && !validCategories.includes(parsedData.category)) {
         Logger.log(`Invalid category in response: ${parsedData.category}`);
         return null;
       }
 
       // If needs_split is true, validate split fields
       if (parsedData.needs_split === true) {
-        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_category) {
-          Logger.log('Invalid split data in response');
+        if (typeof parsedData.split_amount !== 'number' || !parsedData.split_type) {
+          Logger.log('Invalid split data in response: missing split_amount or split_type');
           Logger.log(`Parsed data: ${JSON.stringify(parsedData)}`);
           return null;
         }
 
-        // Validate split category
-        if (!validCategories.includes(parsedData.split_category)) {
-          Logger.log(`Invalid split category in response: ${parsedData.split_category}`);
-          return null;
+        // For DEBIT splits, a split_category is required
+        if (parsedData.split_type === 'DEBIT') {
+          if (!parsedData.split_category || !validCategories.includes(parsedData.split_category)) {
+            Logger.log(`Invalid or missing split_category for DEBIT split: ${parsedData.split_category}`);
+            return null;
+          }
         }
       }
 
       return {
-        category: parsedData.category,
+        category: parsedData.category || null,
         needs_split: parsedData.needs_split === true,
+        split_type: parsedData.split_type || null,
         split_amount: parsedData.split_amount || null,
+        split_description: parsedData.split_description || null,
         split_category: parsedData.split_category || null,
         clean_description: parsedData.clean_description || parsedData.category,
-        split_instructions: parsedData.split_instructions || null
       };
     } catch (error) {
       Logger.log(`Error parsing category analysis response: ${error.message}`);

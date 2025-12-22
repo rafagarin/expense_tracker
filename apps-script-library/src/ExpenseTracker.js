@@ -131,27 +131,51 @@ class ExpenseTracker {
           const analysisResult = await this.googleAIStudioService.analyzeCategory(fullDescription, movementData);
 
           if (analysisResult) {
-            // 4. Update the movement with the analysis results
-            this.database.updateMovementWithAnalysis(movementId, analysisResult);
-            analyzedCount++;
-            Logger.log(`Analyzed movement ID ${movementId}: "${userDescription}" -> category: ${analysisResult.category}, needs_split: ${analysisResult.needs_split}`);
-
-            // 5. If the movement needs to be split, split it immediately
-            if (analysisResult.needs_split) {
+            // If the AI suggests splitting an expense for categorization purposes,
+            // we perform that split instead of assigning a category now. The resulting
+            // movements will be uncategorized for the user to detail further.
+            if (analysisResult.needs_split && analysisResult.split_type === 'EXPENSE') {
               const splitInfo = {
                 split_amount: analysisResult.split_amount,
-                split_category: analysisResult.split_category,
-                split_description: analysisResult.split_description
+                split_description: analysisResult.split_description,
+                clean_description: analysisResult.clean_description,
               };
 
-              const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);
+              // This new function splits one expense into two, leaving both uncategorized.
+              const newMovementId = this.database.splitExpenseForRecategorization(movementId, splitInfo);
               
-              if (newDebitMovementId) {
+              if (newMovementId) {
                 splitCount++;
-                Logger.log(`Split movement ID ${movementId}: modified original to personal portion, created debit movement ${newDebitMovementId} for shared portion`);
+                Logger.log(`Split movement ID ${movementId} into two uncategorized parts. New movement ID: ${newMovementId}`);
               } else {
-                Logger.log(`Failed to split movement ID ${movementId}`);
+                Logger.log(`Failed to split expense movement ID ${movementId}`);
                 errorCount++;
+              }
+              analyzedCount++;
+            } else {
+              // 4. Original Logic: Update the movement with the analysis results
+              this.database.updateMovementWithAnalysis(movementId, analysisResult);
+              analyzedCount++;
+              Logger.log(`Analyzed movement ID ${movementId}: "${userDescription}" -> category: ${analysisResult.category}, needs_split: ${analysisResult.needs_split}`);
+
+              // 5. If the movement needs to be split into a personal expense and a debit
+              if (analysisResult.needs_split) {
+                const splitInfo = {
+                  split_amount: analysisResult.split_amount,
+                  split_category: analysisResult.split_category,
+                  split_description: analysisResult.split_description,
+                  clean_description: analysisResult.clean_description,
+                };
+
+                const newDebitMovementId = this.database.splitMovement(movementId, splitInfo);
+                
+                if (newDebitMovementId) {
+                  splitCount++;
+                  Logger.log(`Split movement ID ${movementId}: modified original to personal portion, created debit movement ${newDebitMovementId} for shared portion`);
+                } else {
+                  Logger.log(`Failed to split movement ID ${movementId}`);
+                  errorCount++;
+                }
               }
             }
 

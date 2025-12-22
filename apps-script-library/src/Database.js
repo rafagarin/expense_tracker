@@ -247,21 +247,15 @@ class Database {
     // Update category
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(analysisResult.category);
     
-    // Keep original user description unchanged - don't modify it
-    // this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
-    
-    // Update comment with split instructions if available
-    if (analysisResult.split_instructions) {
-      this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(analysisResult.split_instructions);
+    // If the movement is not being split, we can update the user description to the cleaned
+    // version from the AI and clear the comment field, as it has been processed.
+    // For split movements, this is handled within the respective split functions.
+    if (!analysisResult.needs_split && analysisResult.clean_description) {
+      this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(analysisResult.clean_description);
+      this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue('');
     }
     
-    // Only update AI comment with clean description if this is a split movement
-    // For non-split movements, leave AI comment empty to avoid duplicating user description
-    if (analysisResult.needs_split && analysisResult.clean_description) {
-      this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(analysisResult.clean_description);
-    }
-    
-    Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}, needs_split=${analysisResult.needs_split}`);
+    Logger.log(`Updated movement ID ${movementId} with analysis results: category=${analysisResult.category}`);
   }
 
   /**
@@ -316,8 +310,10 @@ class Database {
     // 1. Modify the original row in place to be the personal portion
     const sheetRowIndex = originalMovementIndex + 2;
     this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(splitInfo.split_amount);
+    // The category is set by updateMovementWithAnalysis, but we ensure it's correct here.
     this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(splitInfo.split_category);
-    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment for expense line
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.clean_description);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment
     this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`); // Reference the debit line it was split into
     this.sheet.getRange(sheetRowIndex, COLUMNS.ORIGINAL_AMOUNT + 1).setValue(originalMovement[COLUMNS.AMOUNT]); // Set original amount
     
@@ -330,12 +326,11 @@ class Database {
     const sharedMovement = [...originalMovement];
     sharedMovement[COLUMNS.ID] = nextId;
     sharedMovement[COLUMNS.AMOUNT] = remainingAmount;
-    sharedMovement[COLUMNS.CATEGORY] = originalMovement[COLUMNS.CATEGORY];
-    sharedMovement[COLUMNS.USER_DESCRIPTION] = originalMovement[COLUMNS.USER_DESCRIPTION]; // Keep original user description
+    sharedMovement[COLUMNS.CATEGORY] = splitInfo.split_category; // Keep category consistent
+    sharedMovement[COLUMNS.USER_DESCRIPTION] = splitInfo.split_description; // Use description for the debit part
     sharedMovement[COLUMNS.DIRECTION] = DIRECTIONS.NEUTRAL;
     sharedMovement[COLUMNS.TYPE] = MOVEMENT_TYPES.DEBIT;
     sharedMovement[COLUMNS.STATUS] = STATUS.PENDING_DIRECT_SETTLEMENT;
-    sharedMovement[COLUMNS.SOURCE] = SOURCES.GMAIL;
     sharedMovement[COLUMNS.COMMENT] = ''; // Clear comment for debit line
     sharedMovement[COLUMNS.AI_COMMENT] = `Split from #${originalMovementId}`; // Reference the expense line in AI comment
     sharedMovement[COLUMNS.ORIGINAL_AMOUNT] = originalMovement[COLUMNS.AMOUNT]; // Set original amount
@@ -349,6 +344,93 @@ class Database {
     this.addMovement(sharedMovement);
     
     Logger.log(`Split movement ID ${originalMovementId}: modified original to personal portion (${splitInfo.split_amount}), created debit movement ${nextId} for shared portion (${remainingAmount})`);
+    
+    return nextId;
+  }
+
+  /**
+   * Splits an expense movement into two for re-categorization purposes.
+   * The original movement's amount is reduced, and a new uncategorized movement is created.
+   * Both resulting movements are left uncategorized for the user to detail further.
+   * @param {number} originalMovementId - The ID of the original movement to split.
+   * @param {Object} splitInfo - Information for the split, including split_amount and descriptions.
+   * @returns {number|null} The ID of the new movement, or null on failure.
+   */
+  splitExpenseForRecategorization(originalMovementId, splitInfo) {
+    // 1. Find the original movement
+    const allMovements = this.getAllMovements();
+    const originalMovementIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === originalMovementId);
+    
+    if (originalMovementIndex === -1) {
+      Logger.log(`Original movement with ID ${originalMovementId} not found for expense split.`);
+      return null;
+    }
+    
+    const originalMovement = allMovements[originalMovementIndex];
+    const nextId = this.getNextId();
+    
+    // 2. Validate amounts
+    const originalAmount = originalMovement[COLUMNS.AMOUNT];
+    const splitAmount = splitInfo.split_amount;
+    if (splitAmount >= originalAmount || splitAmount <= 0) {
+      Logger.log(`Invalid split amount ${splitAmount} for original amount ${originalAmount}. Aborting split.`);
+      return null;
+    }
+    const remainingAmount = originalAmount - splitAmount;
+
+    // 3. Handle currency value splitting
+    const currencyConversionService = new CurrencyConversionService();
+    const originalCurrencyValues = {
+      clpValue: originalMovement[COLUMNS.CLP_VALUE],
+      usdValue: originalMovement[COLUMNS.USD_VALUE],
+      gbpValue: originalMovement[COLUMNS.GBP_VALUE]
+    };
+    
+    // Proportional values for the remaining part of the original movement
+    const remainingCurrencyValues = currencyConversionService.splitCurrencyValues(
+      originalAmount,
+      remainingAmount,
+      originalCurrencyValues
+    );
+    
+    // Proportional values for the new split-off movement
+    const splitCurrencyValues = currencyConversionService.splitCurrencyValues(
+      originalAmount,
+      splitAmount,
+      originalCurrencyValues
+    );
+
+    // 4. Modify the original movement row
+    const sheetRowIndex = originalMovementIndex + 2; // 1-based index for sheet
+    this.sheet.getRange(sheetRowIndex, COLUMNS.AMOUNT + 1).setValue(remainingAmount);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(splitInfo.clean_description || originalMovement[COLUMNS.USER_DESCRIPTION]);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CATEGORY + 1).setValue(null); // Un-categorize
+    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(''); // Clear comment
+    this.sheet.getRange(sheetRowIndex, COLUMNS.AI_COMMENT + 1).setValue(`Split into #${nextId}`);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.ORIGINAL_AMOUNT + 1).setValue(originalAmount);
+    
+    this.sheet.getRange(sheetRowIndex, COLUMNS.CLP_VALUE + 1).setValue(remainingCurrencyValues.clpValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USD_VALUE + 1).setValue(remainingCurrencyValues.usdValue);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.GBP_VALUE + 1).setValue(remainingCurrencyValues.gbpValue);
+
+    // 5. Create the new movement row
+    const newMovement = [...originalMovement];
+    newMovement[COLUMNS.ID] = nextId;
+    newMovement[COLUMNS.AMOUNT] = splitAmount;
+    newMovement[COLUMNS.USER_DESCRIPTION] = splitInfo.split_description;
+    newMovement[COLUMNS.CATEGORY] = null; // Uncategorized
+    newMovement[COLUMNS.COMMENT] = ''; // Clear comment
+    newMovement[COLUMNS.AI_COMMENT] = `Split from #${originalMovementId}`;
+    newMovement[COLUMNS.ORIGINAL_AMOUNT] = originalAmount;
+    
+    newMovement[COLUMNS.CLP_VALUE] = splitCurrencyValues.clpValue;
+    newMovement[COLUMNS.USD_VALUE] = splitCurrencyValues.usdValue;
+    newMovement[COLUMNS.GBP_VALUE] = splitCurrencyValues.gbpValue;
+
+    // 6. Add the new movement to the database
+    this.addMovement(newMovement);
+    
+    Logger.log(`Split expense movement ID ${originalMovementId}: modified original to ${remainingAmount}, created new movement ${nextId} for ${splitAmount}`);
     
     return nextId;
   }
