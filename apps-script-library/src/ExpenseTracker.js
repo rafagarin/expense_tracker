@@ -206,6 +206,58 @@ class ExpenseTracker {
   }
 
   /**
+   * Applies autofill rules from the "Rules" sheet to new movements.
+   * It matches movements by source_description and sets the user_description and comment.
+   */
+  async applyAutofillRules() {
+    try {
+      Logger.log('Starting autofill rule processing...');
+
+      // 1. Get rules from the "Rules" sheet
+      const rules = this.database.getAutofillRules();
+      if (rules.length === 0) {
+        Logger.log('No autofill rules found or "Rules" sheet is empty.');
+        return;
+      }
+
+      // 2. Get movements that are candidates for autofill
+      const movementsToProcess = this.database.getMovementsToAutofill();
+      if (movementsToProcess.length === 0) {
+        Logger.log('No new movements to apply rules to.');
+        return;
+      }
+
+      Logger.log(`Found ${rules.length} rule(s) and ${movementsToProcess.length} movement(s) to process.`);
+
+      // 3. Create a map for efficient rule lookup (exact match on source_description)
+      const ruleMap = new Map();
+      for (const rule of rules) {
+        if (rule.sourceDescription) {
+          ruleMap.set(rule.sourceDescription.trim(), rule);
+        }
+      }
+
+      let appliedCount = 0;
+
+      // 4. Iterate through movements and apply matching rules
+      for (const movement of movementsToProcess) {
+        const sourceDescription = movement[COLUMNS.SOURCE_DESCRIPTION];
+        if (sourceDescription && ruleMap.has(sourceDescription.trim())) {
+          const rule = ruleMap.get(sourceDescription.trim());
+          const movementId = movement[COLUMNS.ID];
+          
+          this.database.updateMovementWithRule(movementId, rule.userDescription, rule.comment);
+          appliedCount++;
+        }
+      }
+      Logger.log(`Autofill rule processing complete. Applied rules to ${appliedCount} movement(s).`);
+    } catch (error) {
+      Logger.log(`Error applying autofill rules: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Process debit repayment settlement by matching it to a pending debit movement
    * @param {number} repaymentMovementId - The ID of the debit repayment movement
    * @param {Array} repaymentMovement - The debit repayment movement data

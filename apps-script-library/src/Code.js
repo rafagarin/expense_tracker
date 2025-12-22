@@ -15,6 +15,7 @@ function onOpen() {
     .addItem('Process From Bank Emails', 'processBankEmails')
     .addItem('Process From Monzo', 'processMonzoTransactions')
     .addItem('Process From Splitwise', 'processSplitwise')
+    .addItem('Apply Autofill Rules', 'applyAutofillRules')
     .addItem('Analyze Movements', 'analyzeMovements')
     .addItem('Push to Splitwise', 'pushToSplitwise')
     .addItem('Fix Currency Conversions', 'fixCurrencyConversions')
@@ -28,6 +29,14 @@ function onOpen() {
 async function processBankEmails() {
   const expenseTracker = new ExpenseTracker();
   await expenseTracker.processBankEmails();
+}
+
+/**
+ * Applies autofill rules to new movements based on the "Rules" sheet.
+ */
+async function applyAutofillRules() {
+  const expenseTracker = new ExpenseTracker();
+  await expenseTracker.applyAutofillRules();
 }
 
 
@@ -105,16 +114,20 @@ async function main(clientProperties = null) {
     Logger.log('=== Step 3: Processing Splitwise movements ===');
     await expenseTracker.processSplitwiseMovements();
     
-    // Step 4: Analyze movements with AI (only movements with user_description)
-    Logger.log('=== Step 4: Analyzing movements with AI ===');
+    // Step 4: Apply autofill rules to new movements
+    Logger.log('=== Step 4: Applying autofill rules ===');
+    await expenseTracker.applyAutofillRules();
+    
+    // Step 5: Analyze movements with AI (only movements with user_description)
+    Logger.log('=== Step 5: Analyzing movements with AI ===');
     await expenseTracker.processUncategorizedMovements();
     
-    // Step 5: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
-    Logger.log('=== Step 5: Pushing to Splitwise ===');
+    // Step 6: Push to Splitwise (only movements with "Awaiting Splitwise Upload" status)
+    Logger.log('=== Step 6: Pushing to Splitwise ===');
     await expenseTracker.pushToSplitwise();
     
-    // Step 6: Fix failed currency conversions
-    Logger.log('=== Step 6: Fixing failed currency conversions ===');
+    // Step 7: Fix failed currency conversions
+    Logger.log('=== Step 7: Fixing failed currency conversions ===');
     await expenseTracker.fixFailedCurrencyConversions();
     
     Logger.log('Main expense tracking workflow completed successfully.');
@@ -124,5 +137,3 @@ async function main(clientProperties = null) {
     throw error;
   }
 }
-
-

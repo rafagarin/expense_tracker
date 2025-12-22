@@ -204,6 +204,68 @@ class Database {
   }
 
   /**
+   * Get movements that have a source_description but no user_description.
+   * These are candidates for autofill rules.
+   * @returns {Array} Array of movements.
+   */
+  getMovementsToAutofill() {
+    const allMovements = this.getAllMovements();
+    return allMovements.filter(movement => {
+      const hasSourceDescription = movement[COLUMNS.SOURCE_DESCRIPTION] && movement[COLUMNS.SOURCE_DESCRIPTION].trim() !== '';
+      const hasNoUserDescription = !movement[COLUMNS.USER_DESCRIPTION] || movement[COLUMNS.USER_DESCRIPTION].trim() === '';
+      return hasSourceDescription && hasNoUserDescription;
+    });
+  }
+
+  /**
+   * Get autofill rules from the "Rules" sheet.
+   * @returns {Array<Object>} Array of rule objects.
+   */
+  getAutofillRules() {
+    const rulesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Rules');
+    if (!rulesSheet) {
+      Logger.log('Warning: "Rules" sheet not found. Skipping rule processing.');
+      return [];
+    }
+
+    const lastRow = rulesSheet.getLastRow();
+    if (lastRow < 3) {
+      return [];
+    }
+
+    const rulesRange = rulesSheet.getRange(3, 1, lastRow - 2, 3); // Columns A, B, C
+    const rulesValues = rulesRange.getValues();
+
+    return rulesValues.map(row => ({
+      sourceDescription: row[0], // Column A
+      userDescription: row[1],   // Column B
+      comment: row[2]            // Column C
+    })).filter(rule => rule.sourceDescription && rule.sourceDescription.trim() !== '');
+  }
+
+  /**
+   * Update a movement's user_description and comment based on a rule.
+   * @param {number} movementId
+   * @param {string} userDescription
+   * @param {string} comment
+   */
+  updateMovementWithRule(movementId, userDescription, comment) {
+    const allMovements = this.getAllMovements();
+    const movementRowIndex = allMovements.findIndex(movement => movement[COLUMNS.ID] === movementId);
+
+    if (movementRowIndex === -1) {
+      Logger.log(`Movement with ID ${movementId} not found for applying rule.`);
+      return;
+    }
+
+    const sheetRowIndex = movementRowIndex + 2;
+
+    this.sheet.getRange(sheetRowIndex, COLUMNS.USER_DESCRIPTION + 1).setValue(userDescription);
+    this.sheet.getRange(sheetRowIndex, COLUMNS.COMMENT + 1).setValue(comment);
+    Logger.log(`Applied rule to movement ID ${movementId}: set user_description and comment.`);
+  }
+
+  /**
    * Update the category for a specific movement by ID
    * @param {number} movementId - The ID of the movement to update
    * @param {string} category - The new category value
